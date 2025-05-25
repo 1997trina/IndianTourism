@@ -1,32 +1,15 @@
 ## IndianTourism Architecture Diagram
 
-                +------------------------+
-                |  data.gov.in           |
-                +------------------------+
-                           |
-                           v
-                +------------------------+
-                |  Data Cleaning & ETL   |
-                |  (Python / Pandas)     |
-                +------------------------+
-                            |
-                            v
-                +------------------------+
-                |    Snowflake DB        |
-                | (Tourism Dataset)      |
-                +------------------------+
-                           |
-             +-------------+--------------+
-             |                            |
-             v                            v
- +---------------------+      +-------------------------+
- |  Snowpark Connector | ---> |   Streamlit App         |
- |  (Snowflake Python  |      | - Plotly / Altair etc.  |
- |   SDK for querying) |      +-------------------------+
- +---------------------+                    |
-                                            v
+data.gov.in  
+     ↓  
+ETL in Python (Pandas)  
+     ↓  
+Snowflake Data Warehouse  
+     ↓  
+Snowpark (Python SDK)  
+     ↓  
+Streamlit App (with Plotly visualizations)  
+     ↓  
+Streamlit Community Cloud (Free Hosting)
 
-                                 +--------------------------+
-                                 |  Streamlit Community Cloud|
-                                 |  (Deployed & Shared App) |
-                                 +--------------------------+
+              
