@@ -1,7 +1,7 @@
 # IndianTourism
 
                 +------------------------+
-                |  data.gov.in & Others |
+                |  data.gov.in           |
                 +------------------------+
                            |
                            v
@@ -9,8 +9,8 @@
                 |  Data Cleaning & ETL   |
                 |  (Python / Pandas)     |
                 +------------------------+
-                           |
-                           v
+                            |
+                            v
                 +------------------------+
                 |    Snowflake DB        |
                 | (Tourism Dataset)      |
@@ -25,6 +25,7 @@
  |   SDK for querying) |      +-------------------------+
  +---------------------+                    |
                                             v
+
                                  +--------------------------+
                                  |  Streamlit Community Cloud|
                                  |  (Deployed & Shared App) |
