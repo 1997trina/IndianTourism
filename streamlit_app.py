@@ -10,7 +10,7 @@ st.set_page_config(layout="wide")
 conn = st.secrets["connections"]["snowflake"]
 session = Session.builder.configs(conn).create()
 
-tab1, tab2 = st.tabs(["Festivals and Pilgrimage", "Experience & Adventure Sports"])
+tab1, tab2, tab3 = st.tabs(["Festivals and Pilgrimage", "Experience & Adventure Sports", "Stats"])
 
 
 
@@ -57,6 +57,7 @@ FROM TRAVELPROVIDERS
                COUNT(*) AS PROJECT_OR_FESTIVAL_COUNT,
                'Pilgrimage' AS CATEGORY
         FROM PRASHAD
+        WHERE SANCTIONYEAR!='Total'
         GROUP BY SANCTIONYEAR
     """
 
@@ -95,11 +96,11 @@ FROM TRAVELPROVIDERS
 
 
     # Display combined summary table
-    st.subheader("🧾 Combined Yearly Summary")
+    st.subheader("🧾 Let's find out how much government has spent on festivals & pilgrimage")
     st.dataframe(df_summary, use_container_width=True)
 
     # Festival chart
-    st.subheader(f"🎭 Top 6 Funded Festivals in {state_label}")
+    st.subheader(f"🎭 Most Funded Festivals in {state_label}")
     fig_fairs = px.bar(
     df_fairs_top.sort_values("AMOUNT", ascending=False),
     x="AMOUNT",
@@ -118,7 +119,7 @@ FROM TRAVELPROVIDERS
 
 
     # Pilgrimage chart
-    st.subheader(f"🛕 Top 6 Pilgrimage Projects in {state_label}")
+    st.subheader(f"🛕 Top Pilgrimage Projects in {state_label}")
     fig_prashad = px.bar(
         df_prashad_top.sort_values("AMOUNT", ascending=False),
         x="AMOUNT",
@@ -137,7 +138,7 @@ FROM TRAVELPROVIDERS
     
     #TRAVEL PROVIDERS
     
-    st.subheader("🧭 Travel Providers Overview")
+    st.subheader("🧭  Need help with your travel plans : Let's check out the travel providers trusted by our Government")
 
     # Query with or without WHERE clause based on selected_state
     where_clause = f"WHERE STATE = '{selected_state}'" if selected_state != "All" else ""
@@ -193,6 +194,7 @@ FROM TRAVELPROVIDERS
 
 
 with tab2:
+    
     st.title("Newly Funded by GOI Experience & Peak Explorer")
 
     # Unified state list from both tables
@@ -210,6 +212,7 @@ with tab2:
     exp_query = """
     SELECT STATE, DESTINATION, NAME_OF_EXPERIENCE
     FROM SANCTIONEDPROJECTS23TO25
+    WHERE STATE<>'Total'
     """
     df_exp = session.sql(exp_query).to_pandas()
 
@@ -232,15 +235,15 @@ with tab2:
                      title="Experience Counts by State")
         st.plotly_chart(fig, use_container_width=True)
 
-          # --- Peak Chart ---
     st.title("⛰️ Mountain Peaks and Sports")
-    
+
+
     df_peaks = session.sql("""
         SELECT INITCAP(STATE) AS STATE, PEAKNAME, HEIGHT, SPORTS 
         FROM MOUNTAINSPORTS 
         WHERE STATE <> 'State'
     """).to_pandas()
-    
+
     if selected_state != "All":
         df_peaks = df_peaks[df_peaks["STATE"] == selected_state]
     
@@ -250,12 +253,11 @@ with tab2:
                            title=f"Mountain Peaks in {selected_state}")
         st.plotly_chart(fig_peaks, use_container_width=True)
     
-        # Treemap for peaks grouped by Sports
         st.subheader(f"🌲 Peak Activities in {selected_state}")
         fig_tree = px.treemap(
             df_peaks,
             path=["SPORTS", "PEAKNAME"],
-            values=[1]*len(df_peaks),
+            values=None,
             custom_data=["HEIGHT"],
             title=f"Treemap of Peaks by Sport in {selected_state}",
             color="HEIGHT",
@@ -272,4 +274,119 @@ with tab2:
                            x="Peak Count", y="STATE", orientation="h",
                            title="Number of Mountain Peaks by State")
         st.plotly_chart(fig_peaks, use_container_width=True)
+
+    st.subheader("🏺 Museums & Archeology")
+
+    query_museum = """
+    SELECT 
+      STATE, 
+      MUSEUM, 
+      TYPE
+    FROM MUSEUM
+    WHERE STATE != 'Total'
+    """
+    
+    df_museum = session.sql(query_museum).to_pandas()
+    
+    # Apply state filter
+    df_filtered = df_museum if selected_state == "All" else df_museum[df_museum["STATE"] == selected_state]
+    
+    # Group by TYPE and count museums
+    df_count = df_filtered.groupby("TYPE").size().reset_index(name="Museum_Count")
+    
+    # Apply state filter for grouped bar chart too
+    df_filtered = df_museum if selected_state == "All" else df_museum[df_museum["STATE"] == selected_state]
+    
+    # Group by STATE and TYPE to count museums
+    df_grouped = df_filtered.groupby(["STATE", "TYPE"]).size().reset_index(name="Museum_Count")
+    
+    fig3 = px.bar(
+        df_grouped,
+        x="STATE",
+        y="Museum_Count",
+        color="TYPE",
+        barmode="group",
+        title=f"Number of Museums by State and Type funded by GOI in recent years ({selected_state})" if selected_state != "All" else "Number of Museums by State and Type",
+        labels={"Museum_Count": "Number of Museums", "STATE": "State", "TYPE": "Museum Type"},
+    )
+    
+    st.plotly_chart(fig3, use_container_width=True)
+    
+    # Show detailed museum list if a specific state is selected
+    if selected_state != "All":
+        df_detail = df_filtered[["MUSEUM", "TYPE"]]
+        st.markdown(f"### Museums Details in {selected_state}")
+        st.dataframe(df_detail.reset_index(drop=True), use_container_width=True)
+
+
+
+
+
+
+
+
+
+
+with tab3:
+    st.title("Travel History")
+    # Queries
+    query_dtv = """
+    SELECT
+      v1.states,
+      v1.DTV16,
+      v1.DTV17,
+      v1.DTV18,
+      v2.DTV19,
+      v2.DTV20,
+      v2.DTV21
+    FROM visitdata v1
+    JOIN visitdata2 v2 ON v1.states = v2.state
+    """
+    df_dtv = session.sql(query_dtv).to_pandas()
+
+    query_ftv = """
+    SELECT
+      v1.states,
+      v1.FTV16,
+      v1.FTV17,
+      v1.FTV18,
+      v2.FTV19,
+      v2.FTV20,
+      v2.FTV21
+    FROM visitdata v1
+    JOIN visitdata2 v2 ON v1.states = v2.state
+    """
+    df_ftv = session.sql(query_ftv).to_pandas()
+
+    # State selector
+    states = ["All"] + sorted(df_dtv["STATES"].unique())
+    selected_state = st.selectbox("Select a State", states)
+
+    # Domestic: melt & filter
+    df_dtv_long = df_dtv.melt(id_vars=["STATES"], 
+                              value_vars=["DTV16","DTV17","DTV18","DTV19","DTV20","DTV21"],
+                              var_name="Year",
+                              value_name="Visits")
+    df_dtv_long["Year"] = df_dtv_long["Year"].str.replace("DTV", "20")
+
+    if selected_state != "All":
+        df_dtv_long = df_dtv_long[df_dtv_long["STATES"] == selected_state]
+
+    fig_dtv = px.line(df_dtv_long, x="Year", y="Visits", color="STATES",
+                      title=f"Domestic Tourist Visits ({selected_state})" if selected_state != "All" else "Domestic Tourist Visits (All States)")
+    st.plotly_chart(fig_dtv, use_container_width=True)
+
+    # Foreign: melt & filter
+    df_ftv_long = df_ftv.melt(id_vars=["STATES"], 
+                              value_vars=["FTV16","FTV17","FTV18","FTV19","FTV20","FTV21"],
+                              var_name="Year",
+                              value_name="Visits")
+    df_ftv_long["Year"] = df_ftv_long["Year"].str.replace("FTV", "20")
+
+    if selected_state != "All":
+        df_ftv_long = df_ftv_long[df_ftv_long["STATES"] == selected_state]
+
+    fig_ftv = px.line(df_ftv_long, x="Year", y="Visits", color="STATES",
+                      title=f"Foreign Tourist Visits ({selected_state})" if selected_state != "All" else "Foreign Tourist Visits (All States)")
+    st.plotly_chart(fig_ftv, use_container_width=True)
 
