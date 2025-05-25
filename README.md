@@ -1,4 +1,4 @@
-# IndianTourism
+## IndianTourism Architecture Diagram
 
                 +------------------------+
                 |  data.gov.in           |
