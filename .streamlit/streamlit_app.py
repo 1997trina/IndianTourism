@@ -1,14 +1,19 @@
 
 
 import streamlit as st
-from snowflake.snowpark.context import get_active_session
+from snowflake.snowpark import Session
 import pandas as pd
 import plotly.express as px
 from streamlit_plotly_events import plotly_events
 
 st.set_page_config(layout="wide")
-session = get_active_session()
+
+# Only this session setup
+conn = st.secrets["connections"]["snowflake"]
+session = Session.builder.configs(conn).create()
+
 tab1, tab2 = st.tabs(["Festivals and Pilgrimage", "Experience & Adventure Sports"])
+
 
 with tab1:
     
