@@ -21,7 +21,7 @@ with tab1:
     # Get distinct states for slicer
     states_df = session.sql("""
     SELECT STATE FROM (
-        SELECT DISTINCT STATE FROM PRASHAD
+        SELECT DISTINCT STATE FROM PRASHAD WHERE State <> 'Total' AND State<> 'State'
         UNION
         SELECT DISTINCT STATE FROM FAIRSANDCARNIVALSBYSTATE
         UNION
