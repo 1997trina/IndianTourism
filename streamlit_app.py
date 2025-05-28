@@ -15,32 +15,28 @@ tab1, tab2, tab3 = st.tabs(["Festivals and Pilgrimage", "Experience & Adventure 
 
 
 with tab1:
-    
-    st.title("🎉 Indian Cultural Insights Dashboard")
-
-    # Get distinct states for slicer
+    # State selector
     states_df = session.sql("""
-    SELECT STATE FROM (
-        SELECT DISTINCT STATE FROM PRASHAD WHERE State <> 'Total' AND State <> 'State'
-        UNION
-        SELECT DISTINCT STATE FROM FAIRSANDCARNIVALSBYSTATE
-        UNION
-        SELECT DISTINCT  CASE 
-        WHEN STATE = 'Uttrakhand' THEN 'Uttarakhand' 
-        ELSE STATE 
-    END AS STATE 
-FROM TRAVELPROVIDERS
-    ) ORDER BY STATE
-""").to_pandas()
+        SELECT STATE FROM (
+            SELECT DISTINCT STATE FROM PRASHAD WHERE State <> 'Total'
+            UNION
+            SELECT DISTINCT STATE FROM FAIRSANDCARNIVALSBYSTATE
+            UNION
+            SELECT DISTINCT CASE 
+                WHEN STATE = 'Uttrakhand' THEN 'Uttarakhand' 
+                ELSE STATE 
+            END AS STATE 
+            FROM TRAVELPROVIDERS
+            WHERE State <> 'State'
+        ) ORDER BY STATE
+    """).to_pandas()
 
     state_list = states_df["STATE"].tolist()
     selected_state = st.selectbox("Select a State", ["All"] + state_list)
-
-    # Define dynamic WHERE clause
     where_clause = f"WHERE STATE = '{selected_state}'" if selected_state != "All" else ""
     state_label = selected_state if selected_state != "All" else "All States"
 
-    # Queries for unified summary table
+    # Queries
     fairs_summary_query = f"""
         SELECT SANCTIONYEAR,
                SUM(AMOUNTRELEASED) AS AMOUNT_RELEASED_BY_GOV,
@@ -50,35 +46,33 @@ FROM TRAVELPROVIDERS
         {where_clause}
         GROUP BY SANCTIONYEAR
     """
-
+    prashad_where_clause = where_clause + (" AND " if where_clause else "WHERE ") + "PROJECTNAME NOT ILIKE '%total%' AND SANCTIONYEAR != 'Total'"
+    
     prashad_summary_query = f"""
         SELECT SANCTIONYEAR,
                SUM(APPROVEDCOST) AS AMOUNT_RELEASED_BY_GOV,
                COUNT(*) AS PROJECT_OR_FESTIVAL_COUNT,
                'Pilgrimage' AS CATEGORY
         FROM PRASHAD
-        WHERE SANCTIONYEAR!='Total'
+        {prashad_where_clause}
         GROUP BY SANCTIONYEAR
     """
 
-    # Top 6 entries
+
+
     fairs_top_query = f"""
-    SELECT STATE,
-           NAMEOFFAIRS AS NAME,
-           SUM(AMOUNTRELEASED) AS AMOUNT
-    FROM FAIRSANDCARNIVALSBYSTATE
-    {where_clause}
-    GROUP BY STATE, NAMEOFFAIRS
-    ORDER BY AMOUNT DESC
-    LIMIT 6
+        SELECT STATE, NAMEOFFAIRS AS NAME, SUM(AMOUNTRELEASED) AS AMOUNT
+        FROM FAIRSANDCARNIVALSBYSTATE
+        {where_clause}
+        GROUP BY STATE, NAMEOFFAIRS
+        ORDER BY AMOUNT DESC
+        LIMIT 6
     """
 
-
     prashad_top_query = f"""
-        SELECT PROJECTNAME AS NAME,
-               SUM(APPROVEDCOST) AS AMOUNT
+        SELECT PROJECTNAME AS NAME, SUM(APPROVEDCOST) AS AMOUNT
         FROM PRASHAD
-        {where_clause}
+        {where_clause + (' AND' if where_clause else 'WHERE')} lower(PROJECTNAME) NOT LIKE '%total%'
         GROUP BY PROJECTNAME
         ORDER BY AMOUNT DESC
         LIMIT 6
@@ -87,69 +81,92 @@ FROM TRAVELPROVIDERS
     # Load data
     df_fairs_summary = session.sql(fairs_summary_query).to_pandas()
     df_prashad_summary = session.sql(prashad_summary_query).to_pandas()
+    df_summary = pd.concat([df_fairs_summary, df_prashad_summary], ignore_index=True)
 
-    df_summary = pd.concat([df_fairs_summary, df_prashad_summary], ignore_index=True).sort_values(by=["SANCTIONYEAR", "CATEGORY"])
+    df_summary['AMOUNT_RELEASED_LAKH'] = df_summary.apply(
+        lambda row: row['AMOUNT_RELEASED_BY_GOV'] * 100 if row['CATEGORY'] == 'Pilgrimage' else row['AMOUNT_RELEASED_BY_GOV'],
+        axis=1
+    )
+    df_summary['SANCTIONYEAR'] = df_summary['SANCTIONYEAR'].astype(str)
 
+    st.markdown("""
+    <h3 style="
+        color: #800000;
+        text-align: center;
+        font-family: Georgia, serif;
+        padding: 10px 0;
+        margin: 0;">
+    🧾 Curious where the Government Funding goes? Let’s follow the trail!
+    </h3>
+    """, unsafe_allow_html=True)
+
+    fig_summary = px.bar(
+        df_summary,
+        x='SANCTIONYEAR',
+        y='AMOUNT_RELEASED_LAKH',
+        color='CATEGORY',
+        labels={
+            'SANCTIONYEAR': 'Sanction Year',
+            'AMOUNT_RELEASED_LAKH': 'Amount Released (in Lakhs)'
+        },
+        color_discrete_map={
+            'Pilgrimage': '#800000',
+            'Festival': '#F4A460'
+        }
+    )
+    fig_summary.update_layout(barmode='group', xaxis={'type': 'category'}, height=450)
+    st.plotly_chart(fig_summary, use_container_width=True)
+
+    # Load top projects/fairs
     df_fairs_top = session.sql(fairs_top_query).to_pandas()
     df_prashad_top = session.sql(prashad_top_query).to_pandas()
-    df_prashad_top = df_prashad_top[~df_prashad_top["NAME"].str.contains("TOTAL", case=False, na=False)]
+    df_prashad_top["AMOUNT_LAKH"] = df_prashad_top["AMOUNT"] * 100
 
+    st.markdown(f"""
+    <h2 style="color:#800000; font-family: 'Georgia', serif; font-weight: bold; text-shadow: 1px 1px 2px #ccc; font-size: 24px">
+    🎝️ Most Funded Festivals in {state_label}
+    </h2>
+    """, unsafe_allow_html=True)
 
-    # Display combined summary table
-    st.subheader("🧾 Let's find out how much government has spent on festivals & pilgrimage")
-    st.dataframe(df_summary, use_container_width=True)
-
-    # Festival chart
-    st.subheader(f"🎭 Most Funded Festivals in {state_label}")
     fig_fairs = px.bar(
-    df_fairs_top.sort_values("AMOUNT", ascending=False),
-    x="AMOUNT",
-    y="NAME",
-    orientation="h",
-    labels={"AMOUNT": "₹ Funding (in lakh)", "NAME": "Festival"},
-    title="Top 6 Festivals by Government Funding",
-    hover_data=["STATE"]  # 👈 this adds state info to the tooltip
+        df_fairs_top.sort_values("AMOUNT", ascending=False),
+        x="AMOUNT", y="NAME", orientation="h",
+        labels={"AMOUNT": "₹ Funding (in lakh)", "NAME": "Festival"},
+        color_discrete_sequence=['#F4C430']
     )
-    fig_fairs.update_layout(
-    yaxis=dict(autorange="reversed"),
-    margin=dict(t=40, b=40),
-    height=400,
-    )
+    fig_fairs.update_layout(yaxis=dict(autorange="reversed"), margin=dict(t=40, b=40), height=400)
     st.plotly_chart(fig_fairs, use_container_width=True)
 
+    st.markdown(f"""
+    <div style="color:#800000; font-family: Georgia, serif; font-weight: bold; font-size: 24px;">
+    🗕️ Top Pilgrimage Projects in {state_label}
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Pilgrimage chart
-    st.subheader(f"🛕 Top Pilgrimage Projects in {state_label}")
     fig_prashad = px.bar(
-        df_prashad_top.sort_values("AMOUNT", ascending=False),
-        x="AMOUNT",
-        y="NAME",
-        orientation="h",
-        labels={"AMOUNT": "₹ Approved Cost (in crores)", "NAME": "Project"},
-        title="Top 6 Pilgrimage Projects by Approved Cost"
+        df_prashad_top.sort_values("AMOUNT_LAKH", ascending=False),
+        x="AMOUNT_LAKH", y="NAME", orientation="h",
+        labels={"AMOUNT_LAKH": "₹ Approved Cost (in lakh)", "NAME": "Project"},
+        color_discrete_sequence=['#FF9933']
     )
-    fig_prashad.update_layout(
-        yaxis=dict(autorange="reversed"),
-        margin=dict(t=40, b=40),
-        height=400,
-    )
+    fig_prashad.update_layout(yaxis=dict(autorange="reversed"), margin=dict(t=40, b=40), height=400)
     st.plotly_chart(fig_prashad, use_container_width=True)
-        
-    
-    #TRAVEL PROVIDERS
-    
-    st.subheader("🧭  Need help with your travel plans : Let's check out the travel providers trusted by our Government")
 
-    # Query with or without WHERE clause based on selected_state
-    where_clause = f"WHERE STATE = '{selected_state}'" if selected_state != "All" else ""
-    
+    # Travel providers
+    st.markdown("""
+    <div style="color:#800000; font-family: Georgia, serif; font-size: 20px; font-weight: bold;">
+    🧽 Need help with your travel plans? Let's check out the travel providers trusted by our Government
+    </div>
+    """, unsafe_allow_html=True)
+
+
     query_tree = f"""
         SELECT STATE, CATEGORY, ORGANISATION
         FROM TRAVELPROVIDERS
         WHERE STATE <> 'State'
         {f"AND STATE = '{selected_state}'" if selected_state != "All" else ""}
     """
-    
+
     query_treemap = f"""
         SELECT STATE, CATEGORY, COUNT(ORGANISATION) AS NUMBER_OF_ORGANISATIONS
         FROM TRAVELPROVIDERS
@@ -159,35 +176,27 @@ FROM TRAVELPROVIDERS
         ORDER BY NUMBER_OF_ORGANISATIONS DESC
     """
 
-    # Load data
     df_tree = session.sql(query_tree).to_pandas()
     df_tree["STATE"] = df_tree["STATE"].replace("Uttrakhand", "Uttarakhand")
     df_treemap = session.sql(query_treemap).to_pandas()
 
-    # --- Treemap ---
-    st.subheader("🗺️ Travel Providers by State and Category")
     fig_treemap = px.treemap(
         df_treemap,
         path=["STATE", "CATEGORY"],
         values="NUMBER_OF_ORGANISATIONS",
-        color="STATE",
-        title="Travel Providers Distribution"
+        color="STATE"
     )
     st.plotly_chart(fig_treemap, use_container_width=True)
 
-    # --- Tree View ---
-    st.subheader("Details")
+    if selected_state != "All":
+        st.subheader("Details")
+        state_df = df_tree[df_tree['STATE'] == selected_state]
+        for category in sorted(state_df['CATEGORY'].unique()):
+            st.markdown(f"**🔹 {category}**")
+            cat_df = state_df[state_df['CATEGORY'] == category]
+            for org in sorted(cat_df['ORGANISATION'].unique()):
+                st.markdown(f"- {org}")
 
-    for state in sorted(df_tree['STATE'].unique()):
-        with st.expander(f"📍 {state}", expanded=True if selected_state != "All" else False):
-            state_df = df_tree[df_tree['STATE'] == state]
-
-            for category in sorted(state_df['CATEGORY'].unique()):
-                st.markdown(f"**🔹 {category}**")
-                cat_df = state_df[state_df['CATEGORY'] == category]
-
-                for org in sorted(cat_df['ORGANISATION'].unique()):
-                    st.markdown(f"- {org}")
 
 
 
