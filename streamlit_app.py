@@ -203,8 +203,8 @@ with tab1:
 
 
 with tab2:
-    
-    st.title("Newly Funded by GOI Experience & Peak Explorer")
+
+    st.title("Newly Funded by GOI Experiences")
 
     # Unified state list from both tables
     query_states = """
@@ -228,24 +228,39 @@ with tab2:
     if selected_state != "All":
         df_exp = df_exp[df_exp['STATE'].str.title() == selected_state]
 
-    if selected_state != "All":
-        st.subheader(f"🎡 Experiences in {selected_state}")
-        dest_counts = df_exp.groupby('DESTINATION').size().reset_index(name='Experience_Count')
-        fig = px.bar(dest_counts, x='DESTINATION', y='Experience_Count',
-                     title=f"Experience Counts by Destination in {selected_state}")
+        st.markdown(f"""
+        <h3 style='color: #808000; font-family: Georgia, serif; font-size: 24px;'>
+            🎡 Experiences in {selected_state}
+        </h3>
+        """, unsafe_allow_html=True)
+
+        dest_counts = df_exp.groupby('DESTINATION').size().reset_index(name='Number of Experiences')
+        fig = px.bar(dest_counts, x='DESTINATION', y='Number of Experiences',
+                     title=f"Experience Counts by Destination in {selected_state}", color_discrete_sequence=['#808000'])
         st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader("📝 List of Experiences")
         for name in sorted(df_exp["NAME_OF_EXPERIENCE"].dropna().unique()):
-            st.markdown(f"- {name}")
+            st.markdown(f"""
+            <div style="
+                background-color: #f0f8e0;
+                border: 2px solid #808000;
+                border-radius: 10px;
+                padding: 12px;
+                margin-bottom: 10px;
+                font-family: 'Georgia', serif;
+                color: #4b2e2e;">
+                <div style="font-size: 18px;">
+                    🎯 <b>{name}</b>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
     else:
-        state_counts = df_exp.groupby('STATE').size().reset_index(name='Experience_Count')
-        fig = px.bar(state_counts, x='STATE', y='Experience_Count',
+        state_counts = df_exp.groupby('STATE').size().reset_index(name='Number of Experiences')
+        fig = px.bar(state_counts, x='STATE', y='Number of Experiences',color_discrete_sequence=['#808000'],
                      title="Experience Counts by State")
         st.plotly_chart(fig, use_container_width=True)
 
     st.title("⛰️ Mountain Peaks and Sports")
-
 
     df_peaks = session.sql("""
         SELECT INITCAP(STATE) AS STATE, PEAKNAME, HEIGHT, SPORTS 
@@ -255,14 +270,19 @@ with tab2:
 
     if selected_state != "All":
         df_peaks = df_peaks[df_peaks["STATE"] == selected_state]
-    
-        peak_counts = df_peaks.groupby("STATE").size().reset_index(name="Peak Count")
-        fig_peaks = px.bar(peak_counts.sort_values("Peak Count", ascending=True),
-                           x="Peak Count", y="STATE", orientation="h",
+
+        peak_counts = df_peaks.groupby("STATE").size().reset_index(name="Number of Peaks")
+        fig_peaks = px.bar(peak_counts.sort_values("Number of Peaks", ascending=True),
+                           x="Number of Peaks", y="STATE", orientation="h",color_discrete_sequence=['#808000'],
                            title=f"Mountain Peaks in {selected_state}")
         st.plotly_chart(fig_peaks, use_container_width=True)
-    
-        st.subheader(f"🌲 Peak Activities in {selected_state}")
+
+        st.markdown(f"""
+        <h3 style='color: #808000; font-family: Georgia, serif; font-size: 24px;'>
+            🌲 Peak Activities in {selected_state}
+        </h3>
+        """, unsafe_allow_html=True)
+
         fig_tree = px.treemap(
             df_peaks,
             path=["SPORTS", "PEAKNAME"],
@@ -276,38 +296,39 @@ with tab2:
             hovertemplate="<b>%{label}</b><br>Height: %{customdata[0]} m"
         )
         st.plotly_chart(fig_tree, use_container_width=True)
-    
     else:
-        peak_counts = df_peaks.groupby("STATE").size().reset_index(name="Peak Count")
-        fig_peaks = px.bar(peak_counts.sort_values("Peak Count", ascending=True),
-                           x="Peak Count", y="STATE", orientation="h",
+        peak_counts = df_peaks.groupby("STATE").size().reset_index(name="Number of Peaks")
+        fig_peaks = px.bar(peak_counts.sort_values("Number of Peaks", ascending=True),
+                           x="Number of Peaks", y="STATE", orientation="h",color_discrete_sequence=['#808000'],
                            title="Number of Mountain Peaks by State")
         st.plotly_chart(fig_peaks, use_container_width=True)
 
-    st.subheader("🏺 Museums & Archeology")
+    st.title("🏺 Museums & Archeology")
 
     query_museum = """
     SELECT 
-      STATE, 
-      MUSEUM, 
-      TYPE
+        STATE, 
+        MUSEUM, 
+        CASE 
+            WHEN TYPE ILIKE 'Exiting Museum' THEN 'Existing Museum'
+            WHEN TYPE ILIKE 'Existing museum' THEN 'Existing Museum'
+            WHEN TYPE = 'VEM' THEN 'Visitor Experience Management'
+            ELSE TYPE
+        END AS TYPE
     FROM MUSEUM
-    WHERE STATE != 'Total'
-    """
-    
+    WHERE STATE != 'Total'"""
+
     df_museum = session.sql(query_museum).to_pandas()
-    
-    # Apply state filter
     df_filtered = df_museum if selected_state == "All" else df_museum[df_museum["STATE"] == selected_state]
-    
-    # Group by TYPE and count museums
-    df_count = df_filtered.groupby("TYPE").size().reset_index(name="Museum_Count")
-    
-    # Apply state filter for grouped bar chart too
-    df_filtered = df_museum if selected_state == "All" else df_museum[df_museum["STATE"] == selected_state]
-    
-    # Group by STATE and TYPE to count museums
+
     df_grouped = df_filtered.groupby(["STATE", "TYPE"]).size().reset_index(name="Museum_Count")
+
+    color_map = {
+        "Existing Museum": "#808000",           # Olive
+        "New Museum": "#A0522D",                # Brown (Sienna)
+        "Modernization of Museum": "#FFC0CB",  # Pink
+        "Visitor Experience Management": "#CC7722"  # Ochre
+    }
     
     fig3 = px.bar(
         df_grouped,
@@ -317,15 +338,77 @@ with tab2:
         barmode="group",
         title=f"Number of Museums by State and Type funded by GOI in recent years ({selected_state})" if selected_state != "All" else "Number of Museums by State and Type",
         labels={"Museum_Count": "Number of Museums", "STATE": "State", "TYPE": "Museum Type"},
+        color_discrete_map=color_map
     )
-    
     st.plotly_chart(fig3, use_container_width=True)
-    
-    # Show detailed museum list if a specific state is selected
+
+
     if selected_state != "All":
         df_detail = df_filtered[["MUSEUM", "TYPE"]]
-        st.markdown(f"### Museums Details in {selected_state}")
-        st.dataframe(df_detail.reset_index(drop=True), use_container_width=True)
+        st.markdown(f"""
+        <h3 style='color: #808000; font-family: Georgia, serif; font-size: 24px;'>
+            🏺 Museums in {selected_state}
+        </h3>
+        """, unsafe_allow_html=True)
+
+        for _, row in df_detail.iterrows():
+            museum = row['MUSEUM']
+            mtype = row['TYPE']
+            st.markdown(f"""
+            <div style="
+                background-color: #f0f8e0;
+                border: 2px solid #808000;
+                border-radius: 10px;
+                padding: 12px;
+                margin-bottom: 10px;
+                font-family: 'Georgia', serif;
+                color: #4b2e2e;">
+                <div style="font-size: 18px;">
+                    🖼️ <b>{museum}</b>
+                </div>
+                <div style="font-size: 14px; color: #666666; margin-top: 4px;">
+                    {mtype}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    unesco_query = """
+    SELECT *
+    FROM UNESCO
+    WHERE STATE <> 'State'
+    """
+    df_unesco = session.sql(unesco_query).to_pandas()
+
+    if selected_state != "All":
+        unesco_state_df = df_unesco[df_unesco['STATE'] == selected_state]
+
+        if not unesco_state_df.empty:
+            st.markdown("""
+            <h3 style='color: #808000; font-family: Georgia, serif; font-size: 26px; text-align: center;'>
+                BONUS: UNESCO IDENTIFIED SITE - APR 2025
+            </h3>
+            """, unsafe_allow_html=True)
+
+            for _, row in unesco_state_df.iterrows():
+                site = row['HERITAGESITE']
+                site_type = row['TYPE']
+                st.markdown(f"""
+                <div style="
+                    background-color: #F5F5DC;
+                    border: 2px solid #808000;
+                    border-radius: 10px;
+                    padding: 12px;
+                    margin-bottom: 10px;
+                    font-family: 'Georgia', serif;
+                    color: #4b2e2e;">
+                    <div style="font-size: 18px;">
+                        🌏 <b>{site}</b>
+                    </div>
+                    <div style="font-size: 14px; color: #666666; margin-top: 4px;">
+                        {site_type}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
 
 
