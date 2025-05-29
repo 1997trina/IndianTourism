@@ -202,7 +202,7 @@ with tab1:
 
 
 
-st.title("Newly Funded by GOI Experiences")
+    st.title("Newly Funded by GOI Experiences")
 
     # Unified state list from both tables
     query_states = """
