@@ -2,17 +2,49 @@ import streamlit as st
 from snowflake.snowpark import Session
 import pandas as pd
 import plotly.express as px
-from streamlit_plotly_events import plotly_events
 
 st.set_page_config(layout="wide")
 
 # Create Snowflake session
-conn = st.secrets["connections"]["snowflake"]
-session = Session.builder.configs(conn).create()
+session = Session.get_active_session()
+
+# Mandala background and theme styling
+st.markdown("""
+    <style>
+    /* Full background gradient texture */
+    body {
+        background: linear-gradient(135deg, #FFD700 0%, #FF6347 100%);
+        background-attachment: fixed;
+        font-family: 'Georgia', serif;
+    }
+
+    /* Wrapper for readable content */
+    .content-wrapper {
+        background-color: rgba(255, 255, 255, 0.92);
+        padding: 30px;
+        border-radius: 16px;
+        margin: 30px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Styled header */
+    .fancy-header {
+        border: 4px double #B22222;
+        padding: 10px;
+        border-radius: 12px;
+        background-color: #fff0e5;
+        color: #8B0000;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
 
 tab1, tab2, tab3 = st.tabs(["Festivals and Pilgrimage", "Experience & Adventure Sports", "Stats"])
-
-
 
 with tab1:
     # State selector
@@ -201,7 +233,7 @@ with tab1:
 
 
 
-
+with tab2:
     st.title("Newly Funded by GOI Experiences")
 
     # Unified state list from both tables
@@ -455,7 +487,6 @@ with tab1:
 
 
 
-
 with tab3:
     st.title("Travel History & Funding Statistics")
     # Queries
@@ -611,4 +642,3 @@ with tab3:
     )
     
     st.plotly_chart(fig_asi, use_container_width=True)
-
