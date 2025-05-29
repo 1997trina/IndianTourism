@@ -464,23 +464,23 @@ with tab2:
         if not df_untraceable_state.empty:
             random_monument = df_untraceable_state.sample(1).iloc[0]['MONUMENTS']
         
-        st.markdown(f"""
-        <div style="
-            background-color: #fff0e6;
-            border-left: 6px solid #ff6600;
-            padding: 16px;
-            border-radius: 10px;
-            margin-top: 20px;
-            font-family: Georgia, serif;">
-            <h4 style="color: #cc5200;">🧭 Wanna explore more?</h4>
-            <p style="margin: 0; color: #333;">
-                <b>{random_monument}</b> has been listed as <i>untraceable</i> by the ASI.
-            </p>
-            <p style="font-size: 13px; color: #666;">
-                A piece of our heritage, possibly lost — but maybe not forever.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+            st.markdown(f"""
+            <div style="
+                background-color: #fff0e6;
+                border-left: 6px solid #ff6600;
+                padding: 16px;
+                border-radius: 10px;
+                margin-top: 20px;
+                font-family: Georgia, serif;">
+                <h4 style="color: #cc5200;">🧭 Wanna explore more?</h4>
+                <p style="margin: 0; color: #333;">
+                    <b>{random_monument}</b> has been listed as <i>untraceable</i> by the ASI.
+                </p>
+                <p style="font-size: 13px; color: #666;">
+                    A piece of our heritage, possibly lost — but maybe not forever.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 
