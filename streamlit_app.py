@@ -6,7 +6,9 @@ import plotly.express as px
 st.set_page_config(layout="wide")
 
 # Create Snowflake session
+
 session = Session.builder.configs(st.secrets["connections.snowflake"]).create()
+
 
 # Mandala background and theme styling
 st.markdown("""
