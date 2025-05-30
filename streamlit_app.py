@@ -45,7 +45,29 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+import streamlit as st
 
+# Gradient background + Embroidery border effect
+st.markdown("""
+    <style>
+        .stApp {
+            background: linear-gradient(to bottom right, #fff7ae, #ff4d4d);
+            font-family: 'Georgia', serif;
+            color: #333;
+            padding: 20px;
+            border: 10px double #8B0000;
+            box-shadow: 0 0 0 10px #e6c4a0, 0 0 0 15px #8B0000;
+        }
+
+        .block-container {
+            padding-top: 2rem;
+        }
+
+        h1, h2, h3, h4 {
+            color: #4d0000;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 tab1, tab2, tab3 = st.tabs(["Festivals and Pilgrimage", "Experience & Adventure Sports", "Stats"])
 
